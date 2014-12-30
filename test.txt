@@ -1,0 +1,13 @@
+Root
+	Child 1
+		Value of
+		this child can be
+		whatever in a multitude
+		of lines that won't end up getting
+		added as a key because it is a leaf.
+	Child 2
+		Sub Child 1
+			This is a deeper item that is a leaf so it also won't become a key.
+		Sub Child 2
+			A second sub-child that should become a leaf too.
+test
