@@ -4,44 +4,76 @@ var_dump(parseTabTree(file_get_contents('test.txt')));
 
 function parseTabTree($data)
 {
-	$root = array();
-	$root['value'] = 'root';
-	$obj = &$root;
-	$current = '';
-	$lines = explode("\r\n", $data);
-	$curDepth = -1;
+	return json_decode(parseTabTreeToJSON($data), true);
+}
+function parseTabTreeToJSON($data)
+{
+  $accumulator = '';
+  $keys = $leaves = [];
+	$lines = explode(PHP_EOL, $data);
+	$prevDepth = -1;
+	$maxDepth = $prevDepth;
 	foreach ($lines as $line)
 	{
-		preg_match_all('/^[\s]*/', $line, $depth);
+	  //count white space occurnaces for $depth
+	  preg_match_all('/^[\s]*/', $line, $depth);
 		$depth = strlen($depth[0][0]);
+		
+		//strip whitespace occurances for $line
 		$line = preg_replace('/^\s+/', '', $line);
-		// Shallow, push our current value in and switch target up a level.
-		if ($depth < $curDepth)
+		
+		if ($prevDepth < $depth)
 		{
-			$obj['value'] = $current;
-			for ($cl = $curDepth - $depth; $cl > 0; --$cl)
-				$obj = $obj['parent'];
-			$last = $current = '';
+		  //going down
+		  if ($accumulator !== '') {
+		    //$accumulator holds a key if not empty
+		    $keys[$depth][] = makeString($accumulator);
+		  }
+		  $accumulator = ''; // reset
 		}
-		// Deeper, push our current target to parent and step down a level.
-		else if ($depth > $curDepth)
+		else if ($prevDepth > $depth)
 		{
-			$nobj = array();
-			$nobj['parent'] = $obj;
-			$nobj['value'] = $current;
-			if (!empty($current) && !isset($obj[$current])) $obj[$current] = array();
-			$oc = &$obj[$current];
-			var_dump($nobj);
-			$oc[] = $nobj;
-			$obj = $nobj;
-			$current = '';
+		  //going up, $accumulator should be completed leaf
+		  $leaves[$prevDepth][] = makeString($accumulator);
+		  $accumulator = ''; // reset
 		}
-		// Across
-		else $obj['value'] += $current;
-		$current .= $line;
-		$curDepth = $depth;
-	}
-	return $root;
+		else 
+		{
+		  //same depth, accumulate adding a space to seperate multi-line values
+		  $accumulator .= ' ';
+		}
+		$accumulator .= $line;
+		if ($depth > $maxDepth) { $maxDepth = $depth; }
+		$prevDepth = $depth;
+  }
+  //count down from max depth we found, folding values in as we go
+  for ($i = $maxDepth; $i > 0; $i--) 
+  {
+    $pairs = [];
+    foreach ($keys[$i] as $index => $key)
+    {
+      $pairs[] = makePair($key, $leaves[$i][$index]);
+    }
+    //all the pairs we've made so far need to become an object whose key is
+    //waiting on the next level down
+    $leaves[$i - 1][] = makeObject(implode(', ', $pairs));
+  }
+  //the completed JSON string ends up at $leaves[0][0] so let's return that
+  return $leaves[0][0];
 }
-
+//wraps a string in braces to become a JSON object
+function makeObject($string)
+{
+  return '{' . $string . '}';
+}
+//turns a key and leaf string into a JSON key : value pair
+function makePair($key, $leaf)
+{
+  return $key . ' : ' . $leaf;
+}
+//quotes a PHP string to be included in a JSON string
+function makeString($string)
+{
+  return '"' . $string . '"';
+}
 ?>
