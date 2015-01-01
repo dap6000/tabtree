@@ -10,4 +10,14 @@ Root
 			This is a deeper item that is a leaf so it also won't become a key.
 		Sub Child 2
 			A second sub-child that should become a leaf too.
+	Child
+	3
+		Works now
+	But just
+		How deep
+			Can we
+				Go
+					Now
+	And still
+		Get back?
 test

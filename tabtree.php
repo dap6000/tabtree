@@ -1,7 +1,7 @@
 <?php
-
+echo '<pre>';
 var_dump(parseTabTree(file_get_contents('test.txt')));
-
+echo '</pre>';
 function parseTabTree($data)
 {
 	return json_decode(parseTabTreeToJSON($data), true);
@@ -33,9 +33,25 @@ function parseTabTreeToJSON($data)
 		}
 		else if ($prevDepth > $depth)
 		{
-		  //going up, $accumulator should be completed leaf
-		  $leaves[$prevDepth][] = makeString($accumulator);
+		  //going up, $accumulator should be completed leaf for most recent key
+		  $key = array_pop($keys[$prevDepth]);
+		  $leaves[$prevDepth][] = makePair($key, makeString($accumulator));
 		  $accumulator = ''; // reset
+		  //if we've jumped up more than one level then we need construct an object
+		  //for the key currently associated with each level. the object may be a 
+		  //single key : value pair or it could be a collection of siblings. 	  
+		  for ($diff = $prevDepth - 1; $diff > $depth; $diff--) 
+		  {      
+		    //grab the key for depth = $diff...
+		    $key = array_pop($keys[$diff]);	
+		    //...take all the leaves at depth = $diff + 1...
+		    $siblings = $leaves[$diff + 1];
+		    unset($leaves[$diff + 1]);
+		    $leaf = (count($siblings) > 1) ? implode(', ', $siblings) : $siblings[0];
+		    //...turn them into an object and pair them with key, storing the 
+		    //resulting string back in $leaves one level lower.
+		    $leaves[$diff][] = makePair($key, makeObject($leaf));
+		  }
 		}
 		else 
 		{
@@ -43,23 +59,11 @@ function parseTabTreeToJSON($data)
 		  $accumulator .= ' ';
 		}
 		$accumulator .= $line;
-		if ($depth > $maxDepth) { $maxDepth = $depth; }
-		$prevDepth = $depth;
+		$prevDepth = $depth;	
   }
-  //count down from max depth we found, folding values in as we go
-  for ($i = $maxDepth; $i > 0; $i--) 
-  {
-    $pairs = [];
-    foreach ($keys[$i] as $index => $key)
-    {
-      $pairs[] = makePair($key, $leaves[$i][$index]);
-    }
-    //all the pairs we've made so far need to become an object whose key is
-    //waiting on the next level down
-    $leaves[$i - 1][] = makeObject(implode(', ', $pairs));
-  }
-  //the completed JSON string ends up at $leaves[0][0] so let's return that
-  return $leaves[0][0];
+  //$leaves[1] ends up containing the string we've built, but it needs to be 
+  //wrapped in braces. that's what makeObject() is for.
+  return makeObject(array_pop($leaves[1])); 
 }
 //wraps a string in braces to become a JSON object
 function makeObject($string)
